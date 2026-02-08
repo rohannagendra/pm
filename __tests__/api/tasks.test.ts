@@ -8,9 +8,15 @@ const mockPrisma = vi.hoisted(() => ({
     update: vi.fn(),
     delete: vi.fn(),
   },
+  activityLog: {
+    create: vi.fn(),
+  },
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/auth", () => ({
+  getCurrentUser: vi.fn().mockResolvedValue(null),
+}));
 
 import { GET, POST } from "@/app/api/tasks/route";
 import {
@@ -26,12 +32,24 @@ beforeEach(() => {
 describe("GET /api/tasks", () => {
   it("returns tasks with tags parsed from JSON", async () => {
     mockPrisma.task.findMany.mockResolvedValue([
-      { id: "1", title: "Test", tags: '["a","b"]' },
+      {
+        id: "1",
+        title: "Test",
+        tags: '["a","b"]',
+        _count: { comments: 0 },
+        dependencies: [],
+        subtasks: [],
+        timeEntries: [],
+        attachments: [],
+        assignee: null,
+      },
     ]);
     const res = await GET();
     const data = await res.json();
     expect(res.status).toBe(200);
-    expect(data).toEqual([{ id: "1", title: "Test", tags: ["a", "b"] }]);
+    expect(data[0].id).toBe("1");
+    expect(data[0].tags).toEqual(["a", "b"]);
+    expect(data[0].commentCount).toBe(0);
   });
 
   it("returns empty array when no tasks", async () => {
@@ -54,8 +72,15 @@ describe("POST /api/tasks", () => {
       project: null,
       tags: '["x"]',
       createdAt: new Date().toISOString(),
+      subtasks: [],
+      dependencies: [],
+      timeEntries: [],
+      attachments: [],
+      assignee: null,
+      _count: { comments: 0 },
     };
     mockPrisma.task.create.mockResolvedValue(created);
+    mockPrisma.activityLog.create.mockResolvedValue({});
     const req = new Request("http://localhost/api/tasks", {
       method: "POST",
       body: JSON.stringify({ title: "New", tags: ["x"] }),
@@ -108,6 +133,7 @@ describe("PUT /api/tasks/[id]", () => {
       title: "Updated",
       tags: '["new"]',
     });
+    mockPrisma.activityLog.create.mockResolvedValue({});
     const req = new Request("http://localhost", {
       method: "PUT",
       body: JSON.stringify({ title: "Updated", tags: ["new"] }),
@@ -131,7 +157,9 @@ describe("PUT /api/tasks/[id]", () => {
 
 describe("DELETE /api/tasks/[id]", () => {
   it("deletes a task", async () => {
+    mockPrisma.task.findUnique.mockResolvedValue({ title: "Test" });
     mockPrisma.task.delete.mockResolvedValue({});
+    mockPrisma.activityLog.create.mockResolvedValue({});
     const res = await DELETE(new Request("http://localhost"), {
       params: Promise.resolve({ id: "1" }),
     });

@@ -8,9 +8,15 @@ const mockPrisma = vi.hoisted(() => ({
     update: vi.fn(),
     delete: vi.fn(),
   },
+  activityLog: {
+    create: vi.fn(),
+  },
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/auth", () => ({
+  getCurrentUser: vi.fn().mockResolvedValue(null),
+}));
 
 import { GET, POST } from "@/app/api/projects/route";
 import {
@@ -46,6 +52,7 @@ describe("POST /api/projects", () => {
   it("creates a project and returns 201", async () => {
     const project = { id: "1", name: "New", color: "#6366f1", description: "" };
     mockPrisma.project.create.mockResolvedValue(project);
+    mockPrisma.activityLog.create.mockResolvedValue({});
     const req = new Request("http://localhost", {
       method: "POST",
       body: JSON.stringify({ name: "New" }),
@@ -90,6 +97,7 @@ describe("GET /api/projects/[id]", () => {
 describe("PUT /api/projects/[id]", () => {
   it("updates a project", async () => {
     mockPrisma.project.update.mockResolvedValue({ id: "1", name: "Updated" });
+    mockPrisma.activityLog.create.mockResolvedValue({});
     const req = new Request("http://localhost", {
       method: "PUT",
       body: JSON.stringify({ name: "Updated" }),
@@ -112,7 +120,9 @@ describe("PUT /api/projects/[id]", () => {
 
 describe("DELETE /api/projects/[id]", () => {
   it("deletes a project", async () => {
+    mockPrisma.project.findUnique.mockResolvedValue({ name: "Test" });
     mockPrisma.project.delete.mockResolvedValue({});
+    mockPrisma.activityLog.create.mockResolvedValue({});
     const res = await DELETE(new Request("http://localhost"), {
       params: Promise.resolve({ id: "1" }),
     });
