@@ -10,7 +10,7 @@ import { Download, Trash2, RotateCcw, Moon, Sun } from "lucide-react";
 import { useState, useEffect } from "react";
 
 export default function SettingsPage() {
-  const { tasks, projects, events } = useAppStore();
+  const { tasks, projects, events, seedData } = useAppStore();
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
@@ -52,9 +52,19 @@ export default function SettingsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const clearAllData = () => {
+  const resetToSampleData = async () => {
+    if (confirm("Are you sure you want to reset to sample data? This cannot be undone.")) {
+      await seedData();
+    }
+  };
+
+  const clearAllData = async () => {
     if (confirm("Are you sure you want to delete all data? This cannot be undone.")) {
-      localStorage.removeItem("projectflow-store");
+      await Promise.all([
+        ...tasks.map((t) => fetch(`/api/tasks/${t.id}`, { method: "DELETE" })),
+        ...projects.map((p) => fetch(`/api/projects/${p.id}`, { method: "DELETE" })),
+        ...events.map((e) => fetch(`/api/events/${e.id}`, { method: "DELETE" })),
+      ]);
       window.location.reload();
     }
   };
@@ -154,7 +164,7 @@ export default function SettingsPage() {
                 <p className="text-sm font-medium">Reset to sample data</p>
                 <p className="text-sm text-muted-foreground">Restore the default sample data</p>
               </div>
-              <Button variant="outline" size="sm" onClick={clearAllData}>
+              <Button variant="outline" size="sm" onClick={resetToSampleData}>
                 <RotateCcw className="h-4 w-4 mr-1" />
                 Reset
               </Button>

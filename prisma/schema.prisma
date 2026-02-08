@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String    @default("")
+  status      String    @default("todo")
+  priority    String    @default("medium")
+  dueDate     String?
+  project     String?
+  tags        String    @default("[]")
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  color       String   @default("#6366f1")
+  description String   @default("")
+  createdAt   DateTime @default(now())
+}
+
+model CalendarEvent {
+  id          String @id @default(cuid())
+  title       String
+  date        String
+  startTime   String
+  endTime     String
+  description String @default("")
+  color       String @default("#6366f1")
+}

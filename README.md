@@ -66,7 +66,9 @@ A beautiful, feature-rich project management application built with Next.js 16, 
 | [TypeScript](https://www.typescriptlang.org/) | Type safety |
 | [TailwindCSS v4](https://tailwindcss.com/) | Utility-first CSS |
 | [shadcn/ui](https://ui.shadcn.com/) | UI component library (Radix UI primitives) |
-| [Zustand](https://zustand-demo.pmnd.rs/) | State management with localStorage persistence |
+| [Zustand](https://zustand-demo.pmnd.rs/) | Client-side state management |
+| [Prisma](https://www.prisma.io/) | ORM for database access |
+| [SQLite](https://www.sqlite.org/) | Embedded database (via better-sqlite3) |
 | [date-fns](https://date-fns.org/) | Date manipulation and formatting |
 | [Lucide React](https://lucide.dev/) | Icon library |
 
@@ -82,11 +84,59 @@ A beautiful, feature-rich project management application built with Next.js 16, 
 # Install dependencies
 npm install
 
+# Set up environment variables
+cp .env.example .env
+
+# Generate Prisma client and run migrations
+npx prisma generate
+npx prisma migrate dev
+
 # Start the development server
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | SQLite database file path | `file:./prisma/dev.db` |
+
+### Database Setup
+
+ProjectFlow uses **Prisma** with **SQLite** for data persistence. The database file is stored locally at `prisma/dev.db`.
+
+```bash
+# Generate the Prisma client
+npx prisma generate
+
+# Run database migrations
+npx prisma migrate dev
+
+# Open Prisma Studio (GUI for browsing data)
+npx prisma studio
+
+# Seed the database with sample data
+# POST to /api/seed after starting the dev server
+```
+
+### Docker Setup
+
+Run the app in a container using Docker Compose:
+
+```bash
+# Build and start the container
+docker-compose up
+
+# Run in detached mode
+docker-compose up -d
+
+# Stop the container
+docker-compose down
+```
+
+The container exposes port 3000 and persists the SQLite database in a named volume.
 
 ### Build for Production
 
@@ -94,6 +144,20 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 npm run build
 npm start
 ```
+
+## API Routes
+
+All data is accessed through RESTful API routes backed by Prisma and SQLite.
+
+| Route | Methods | Description |
+|-------|---------|-------------|
+| `/api/tasks` | GET, POST | List all tasks / Create a task |
+| `/api/tasks/[id]` | PUT, DELETE | Update / Delete a task |
+| `/api/projects` | GET, POST | List all projects / Create a project |
+| `/api/projects/[id]` | PUT, DELETE | Update / Delete a project |
+| `/api/events` | GET, POST | List all events / Create an event |
+| `/api/events/[id]` | PUT, DELETE | Update / Delete an event |
+| `/api/seed` | POST | Seed database with sample data |
 
 ## Project Structure
 
@@ -103,6 +167,21 @@ pm/
 │   ├── layout.tsx          # Root layout with sidebar navigation
 │   ├── page.tsx            # Dashboard page
 │   ├── globals.css         # Global styles and Tailwind config
+│   ├── api/
+│   │   ├── tasks/
+│   │   │   ├── route.ts    # GET/POST tasks
+│   │   │   └── [id]/
+│   │   │       └── route.ts # PUT/DELETE task
+│   │   ├── projects/
+│   │   │   ├── route.ts    # GET/POST projects
+│   │   │   └── [id]/
+│   │   │       └── route.ts # PUT/DELETE project
+│   │   ├── events/
+│   │   │   ├── route.ts    # GET/POST events
+│   │   │   └── [id]/
+│   │   │       └── route.ts # PUT/DELETE event
+│   │   └── seed/
+│   │       └── route.ts    # Seed database
 │   ├── calendar/
 │   │   └── page.tsx        # Calendar route
 │   ├── projects/
@@ -119,8 +198,14 @@ pm/
 │   ├── calendar-page.tsx   # Calendar with month/week/day views
 │   └── ui/                 # shadcn/ui components
 ├── lib/
-│   ├── store.ts            # Zustand store (tasks, projects, events)
+│   ├── store.ts            # Zustand store (client state + API calls)
+│   ├── prisma.ts           # Prisma client singleton
 │   └── utils.ts            # Utility functions
+├── prisma/
+│   ├── schema.prisma       # Database schema
+│   ├── seed.mjs            # Seed data script
+│   └── migrations/         # Database migrations
+├── docker-compose.yml
 ├── tailwind.config.ts
 ├── tsconfig.json
 └── package.json
@@ -128,7 +213,7 @@ pm/
 
 ## Data Persistence
 
-All data is stored in the browser's `localStorage` under the key `projectflow-store`. The app ships with sample data (3 projects, 8 tasks, 4 calendar events) that loads on first visit. Data can be exported as JSON or CSV from the Settings page.
+Data is persisted in a SQLite database via Prisma ORM. The Zustand store on the client side fetches and mutates data through the API routes. The database file is stored at `prisma/dev.db` by default (configurable via `DATABASE_URL`). Sample data (3 projects, 8 tasks, 4 calendar events) can be loaded by calling the `/api/seed` endpoint.
 
 ## License
 
