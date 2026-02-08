@@ -31,8 +31,11 @@ import {
   FolderKanban,
   Calendar,
   GripVertical,
-  User,
+  MessageSquare,
+  ExternalLink,
 } from "lucide-react";
+import { UserAvatar } from "@/components/task-detail-dialog";
+import Link from "next/link";
 
 const COLUMNS: { status: TaskStatus; label: string; color: string }[] = [
   { status: "todo", label: "To Do", color: "bg-slate-100 dark:bg-slate-800/50" },
@@ -122,20 +125,26 @@ function TaskCard({ task }: { task: Task }) {
       </div>
 
       <div className="mt-2 flex items-center justify-between">
-        {task.dueDate ? (
-          <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Calendar className="h-3 w-3" />
-            {new Date(task.dueDate + "T00:00:00").toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            })}
-          </span>
-        ) : (
-          <span />
-        )}
-        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted">
-          <User className="h-3.5 w-3.5 text-muted-foreground" />
+        <div className="flex items-center gap-2">
+          {task.dueDate ? (
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              {new Date(task.dueDate + "T00:00:00").toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+          ) : (
+            <span />
+          )}
+          {(task.commentCount ?? 0) > 0 && (
+            <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
+              <MessageSquare className="h-3 w-3" />
+              {task.commentCount}
+            </span>
+          )}
         </div>
+        <UserAvatar user={task.assignee ?? null} size="sm" />
       </div>
     </div>
   );
@@ -174,6 +183,9 @@ function AddTaskDialog({
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean),
+      recurrence: null,
+      estimatedMinutes: null,
+      assigneeId: null,
     });
     setTitle("");
     setDescription("");
@@ -334,7 +346,7 @@ function KanbanColumn({
     <div
       className={`flex w-72 shrink-0 flex-col rounded-xl ${bgColor} ${
         dragOver ? "ring-2 ring-primary/40" : ""
-      } transition-shadow`}
+      } transition-shadow snap-center`}
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
@@ -416,12 +428,19 @@ export default function ProjectsPage() {
               ))}
             </SelectContent>
           </Select>
+          {selectedProject !== "all" && (
+            <Link href={`/projects/${selectedProject}`}>
+              <Button variant="outline" size="sm">
+                <ExternalLink className="h-4 w-4 mr-1" /> Details
+              </Button>
+            </Link>
+          )}
           <CreateProjectDialog />
         </div>
       </div>
 
       {/* Board */}
-      <div className="flex flex-1 gap-4 overflow-x-auto p-6">
+      <div className="flex flex-1 gap-4 overflow-x-auto p-4 md:p-6 -mx-4 md:mx-0 snap-x snap-mandatory md:snap-none">
         {COLUMNS.map((col) => {
           const columnTasks = filteredTasks.filter((t) => t.status === col.status);
           return (

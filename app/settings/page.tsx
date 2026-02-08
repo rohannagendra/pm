@@ -1,22 +1,50 @@
 "use client";
 
 import { useAppStore } from "@/lib/store";
+import { useProjectStore } from "@/lib/project-store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Download, Trash2, RotateCcw, Moon, Sun } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Download, Trash2, RotateCcw, Moon, Sun, Globe } from "lucide-react";
 import { useState, useEffect } from "react";
+
+const COMMON_TIMEZONES = [
+  "UTC",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Anchorage",
+  "Pacific/Honolulu",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Asia/Tokyo",
+  "Asia/Shanghai",
+  "Asia/Kolkata",
+  "Australia/Sydney",
+  "Pacific/Auckland",
+];
 
 export default function SettingsPage() {
   const { tasks, projects, events, seedData } = useAppStore();
+  const { timezone, setTimezone, loadTimezone } = useProjectStore();
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     const isDark = document.documentElement.classList.contains("dark");
     setDarkMode(isDark);
-  }, []);
+    loadTimezone();
+  }, [loadTimezone]);
 
   const toggleDarkMode = () => {
     document.documentElement.classList.toggle("dark");
@@ -92,6 +120,36 @@ export default function SettingsPage() {
                 </span>
               </Label>
               <Switch id="dark-mode" checked={darkMode} onCheckedChange={toggleDarkMode} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Timezone
+            </CardTitle>
+            <CardDescription>Set your preferred timezone for calendar events</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <Label className="flex flex-col gap-1">
+                <span>Timezone</span>
+                <span className="text-sm text-muted-foreground font-normal">
+                  Used for displaying event times
+                </span>
+              </Label>
+              <Select value={timezone} onValueChange={setTimezone}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMMON_TIMEZONES.map((tz) => (
+                    <SelectItem key={tz} value={tz}>{tz.replace(/_/g, " ")}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>

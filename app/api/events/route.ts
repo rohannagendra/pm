@@ -17,6 +17,8 @@ export async function POST(request: Request) {
         endTime: body.endTime,
         description: body.description ?? "",
         color: body.color ?? "#6366f1",
+        recurrence: body.recurrence ?? null,
+        timezone: body.timezone ?? null,
       },
     });
     return NextResponse.json(event, { status: 201 });

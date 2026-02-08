@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   format,
   startOfMonth,
@@ -14,13 +14,16 @@ import {
   subWeeks,
   addDays,
   subDays,
+  addYears,
   isSameDay,
   isSameMonth,
   isToday,
   isBefore,
+  isAfter,
   parseISO,
   startOfDay,
 } from "date-fns";
+import { useProjectStore } from "@/lib/project-store";
 import {
   ChevronLeft,
   ChevronRight,
@@ -29,6 +32,8 @@ import {
   CalendarDays,
   Circle,
   Trash2,
+  Repeat,
+  Globe,
 } from "lucide-react";
 import { useAppStore, type Task, type CalendarEvent } from "@/lib/store";
 import { Button } from "@/components/ui/button";
@@ -83,19 +88,27 @@ function EventDialog({
   initialDate: Date;
 }) {
   const addEvent = useAppStore((s) => s.addEvent);
+  const { timezone } = useProjectStore();
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(format(initialDate, "yyyy-MM-dd"));
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:00");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState(EVENT_COLORS[0]);
+  const [recurrencePattern, setRecurrencePattern] = useState<string>("none");
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    addEvent({ title: title.trim(), date, startTime, endTime, description, color });
+    const recurrence = recurrencePattern !== "none"
+      ? JSON.stringify({ pattern: recurrencePattern, interval: 1, endDate: recurrenceEndDate || undefined })
+      : null;
+    addEvent({ title: title.trim(), date, startTime, endTime, description, color, recurrence, timezone });
     setTitle("");
     setDescription("");
+    setRecurrencePattern("none");
+    setRecurrenceEndDate("");
     onOpenChange(false);
   }
 
@@ -172,6 +185,31 @@ function EventDialog({
               ))}
             </div>
           </div>
+          <div className="space-y-2">
+            <Label>Recurrence</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <Select value={recurrencePattern} onValueChange={setRecurrencePattern}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Repeat</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+              {recurrencePattern !== "none" && (
+                <Input
+                  type="date"
+                  value={recurrenceEndDate}
+                  onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                  placeholder="End date (optional)"
+                />
+              )}
+            </div>
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
@@ -182,6 +220,58 @@ function EventDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+// ─── Recurring Event Generation ──────────────────────────────────────────────
+
+function generateRecurringInstances(
+  events: CalendarEvent[],
+  rangeStart: Date,
+  rangeEnd: Date
+): CalendarEvent[] {
+  const result: CalendarEvent[] = [];
+  for (const event of events) {
+    if (!event.recurrence) {
+      result.push(event);
+      continue;
+    }
+    let rec: { pattern: string; interval: number; endDate?: string };
+    try {
+      rec = JSON.parse(event.recurrence);
+    } catch {
+      result.push(event);
+      continue;
+    }
+
+    const eventDate = parseISO(event.date);
+    const endLimit = rec.endDate ? parseISO(rec.endDate) : rangeEnd;
+    const limit = isBefore(endLimit, rangeEnd) ? endLimit : rangeEnd;
+
+    // Add original
+    if (!isBefore(eventDate, rangeStart) && !isAfter(eventDate, rangeEnd)) {
+      result.push(event);
+    }
+
+    // Generate instances
+    let current = eventDate;
+    for (let i = 0; i < 365; i++) {
+      switch (rec.pattern) {
+        case "daily": current = addDays(current, rec.interval); break;
+        case "weekly": current = addWeeks(current, rec.interval); break;
+        case "monthly": current = addMonths(current, rec.interval); break;
+        case "yearly": current = addYears(current, rec.interval); break;
+        default: current = addDays(limit, 1); // stop
+      }
+      if (isAfter(current, limit)) break;
+      if (isBefore(current, rangeStart)) continue;
+      result.push({
+        ...event,
+        id: `${event.id}_${format(current, "yyyy-MM-dd")}`,
+        date: format(current, "yyyy-MM-dd"),
+      });
+    }
+  }
+  return result;
 }
 
 // ─── Task Quick-Add Dialog ───────────────────────────────────────────────────
@@ -212,6 +302,9 @@ function TaskDialog({
       dueDate: format(initialDate, "yyyy-MM-dd"),
       project: project === "none" ? null : project,
       tags: [],
+      recurrence: null,
+      estimatedMinutes: null,
+      assigneeId: null,
     });
     setTitle("");
     onOpenChange(false);
@@ -444,8 +537,13 @@ function MonthView({
   function getTasksForDay(day: Date) {
     return tasks.filter((t) => t.dueDate && isSameDay(parseISO(t.dueDate), day));
   }
+  const expandedEvents = useMemo(
+    () => generateRecurringInstances(events, calStart, calEnd),
+    [events, calStart, calEnd]
+  );
+
   function getEventsForDay(day: Date) {
-    return events.filter((e) => isSameDay(parseISO(e.date), day));
+    return expandedEvents.filter((e) => isSameDay(parseISO(e.date), day));
   }
 
   return (
@@ -490,9 +588,10 @@ function MonthView({
                 {dayEvents.slice(0, 2).map((evt) => (
                   <div
                     key={evt.id}
-                    className="truncate rounded px-1 text-[10px] font-medium text-white leading-4"
+                    className="truncate rounded px-1 text-[10px] font-medium text-white leading-4 flex items-center gap-0.5"
                     style={{ backgroundColor: evt.color }}
                   >
+                    {evt.recurrence && <Repeat className="h-2.5 w-2.5 shrink-0" />}
                     {evt.title}
                   </div>
                 ))}
@@ -838,6 +937,9 @@ export default function CalendarPage() {
   const tasks = useAppStore((s) => s.tasks);
   const events = useAppStore((s) => s.events);
   const projects = useAppStore((s) => s.projects);
+  const { timezone, loadTimezone } = useProjectStore();
+
+  useEffect(() => { loadTimezone(); }, [loadTimezone]);
 
   const dialogDate = selectedDay ?? currentDate;
 
@@ -925,6 +1027,10 @@ export default function CalendarPage() {
           >
             <Plus className="h-4 w-4 mr-1" /> Event
           </Button>
+          <span className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
+            <Globe className="h-3.5 w-3.5" />
+            {timezone}
+          </span>
         </div>
       </div>
 
