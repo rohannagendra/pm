@@ -119,4 +119,18 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Visible focus indicators for keyboard navigation */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+  /* Touch-friendly tap targets */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  /* Smaller inline elements can opt out */
+  .inline-control {
+    min-height: auto;
+    min-width: auto;
+  }
 }

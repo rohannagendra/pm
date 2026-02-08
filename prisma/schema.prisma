@@ -6,25 +6,140 @@ datasource db {
   provider = "sqlite"
 }
 
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String?
+  avatarUrl     String?
+  timezone      String    @default("UTC")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  teams         TeamMember[]
+  tasks         Task[]     @relation("assignee")
+  comments      TaskComment[]
+  timeEntries   TimeEntry[]
+  activities    ActivityLog[]
+  notifications Notification[]
+  apiKeys       ApiKey[]
+  savedFilters  SavedFilter[]
+}
+
+model Team {
+  id          String       @id @default(cuid())
+  name        String
+  createdAt   DateTime     @default(now())
+  members     TeamMember[]
+  projects    Project[]
+}
+
+model TeamMember {
+  id     String @id @default(cuid())
+  userId String
+  teamId String
+  role   String @default("member")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  @@unique([userId, teamId])
+}
+
 model Task {
-  id          String    @id @default(cuid())
-  title       String
-  description String    @default("")
-  status      String    @default("todo")
-  priority    String    @default("medium")
-  dueDate     String?
-  project     String?
-  tags        String    @default("[]")
-  createdAt   DateTime  @default(now())
-  completedAt DateTime?
+  id               String           @id @default(cuid())
+  title            String
+  description      String           @default("")
+  status           String           @default("todo")
+  priority         String           @default("medium")
+  dueDate          String?
+  project          String?
+  tags             String           @default("[]")
+  createdAt        DateTime         @default(now())
+  completedAt      DateTime?
+  assigneeId       String?
+  recurrence       String?
+  estimatedMinutes Int?
+  milestoneId      String?
+  assignee         User?            @relation("assignee", fields: [assigneeId], references: [id])
+  milestone        Milestone?       @relation(fields: [milestoneId], references: [id])
+  subtasks         Subtask[]
+  dependencies     TaskDependency[] @relation("taskDependencies")
+  dependedOn       TaskDependency[] @relation("taskDependedOn")
+  comments         TaskComment[]
+  timeEntries      TimeEntry[]
+  attachments      FileAttachment[]
+}
+
+model Subtask {
+  id        String  @id @default(cuid())
+  taskId    String
+  title     String
+  completed Boolean @default(false)
+  sortOrder Int     @default(0)
+  task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model TaskDependency {
+  id          String @id @default(cuid())
+  taskId      String
+  dependsOnId String
+  task        Task   @relation("taskDependencies", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn   Task   @relation("taskDependedOn", fields: [dependsOnId], references: [id], onDelete: Cascade)
+  @@unique([taskId, dependsOnId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+}
+
+model TimeEntry {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  minutes   Int
+  date      String
+  note      String   @default("")
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model FileAttachment {
+  id        String   @id @default(cuid())
+  taskId    String
+  filename  String
+  filepath  String
+  mimetype  String
+  size      Int
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
 }
 
 model Project {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
-  color       String   @default("#6366f1")
+  color       String      @default("#6366f1")
+  description String      @default("")
+  createdAt   DateTime    @default(now())
+  teamId      String?
+  team        Team?       @relation(fields: [teamId], references: [id])
+  milestones  Milestone[]
+}
+
+model Milestone {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
   description String   @default("")
+  targetDate  String
   createdAt   DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       Task[]
 }
 
 model CalendarEvent {
@@ -35,4 +150,58 @@ model CalendarEvent {
   endTime     String
   description String @default("")
   color       String @default("#6366f1")
+  recurrence  String?
+  timezone    String?
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  type       String
+  title      String
+  message    String
+  entityId   String?
+  entityType String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String
+  metadata   String   @default("{}")
+  createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+model ApiKey {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  key       String    @unique
+  lastUsed  DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Webhook {
+  id        String   @id @default(cuid())
+  url       String
+  events    String
+  secret    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model SavedFilter {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  config    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

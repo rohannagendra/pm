@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { CompletionTrendsChart, BurndownChart } from "@/components/analytics-charts";
+import { ActivityFeed } from "@/components/activity-feed";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -271,32 +273,10 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest task updates</CardDescription>
+            <CardDescription>Latest actions across the app</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {recentActivity.map((t) => (
-                <div
-                  key={t.id + t.activityType}
-                  className="flex items-center gap-3"
-                >
-                  <div
-                    className={`h-2 w-2 shrink-0 rounded-full ${
-                      t.activityType === "completed"
-                        ? "bg-emerald-500"
-                        : "bg-blue-500"
-                    }`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm">{t.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {t.activityType === "completed" ? "Completed" : "Created"}{" "}
-                      {relativeTime(t.activityDate)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ActivityFeed limit={8} />
           </CardContent>
         </Card>
       </div>
@@ -403,6 +383,12 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Analytics */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <CompletionTrendsChart />
+        <BurndownChart />
+      </div>
+
       {/* Quick Actions */}
       <Card>
         <CardHeader>
@@ -420,6 +406,9 @@ export default function DashboardPage() {
                   dueDate: null,
                   project: null,
                   tags: [],
+                  recurrence: null,
+                  estimatedMinutes: null,
+                  assigneeId: null,
                 })
               }
             >

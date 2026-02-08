@@ -17,17 +17,28 @@ function flushPromises() {
   return new Promise((r) => setTimeout(r, 0));
 }
 
-const sampleTask = {
+import type { Task } from "@/lib/store";
+
+const sampleTask: Task = {
   id: "task1",
   title: "Test task",
   description: "desc",
-  status: "todo" as const,
-  priority: "medium" as const,
+  status: "todo",
+  priority: "medium",
   dueDate: null,
   project: null,
   tags: [],
   createdAt: "2026-01-01T00:00:00.000Z",
   completedAt: null,
+  recurrence: null,
+  estimatedMinutes: null,
+  assigneeId: null,
+  assignee: null,
+  subtasks: [],
+  dependencies: [],
+  timeEntries: [],
+  attachments: [],
+  commentCount: 0,
 };
 
 const sampleProject = {
@@ -129,6 +140,9 @@ describe("addTask", () => {
       dueDate: null,
       project: null,
       tags: [],
+      recurrence: null,
+      estimatedMinutes: null,
+      assigneeId: null,
     });
 
     // Optimistic: task added immediately
@@ -153,6 +167,9 @@ describe("addTask", () => {
       dueDate: null,
       project: null,
       tags: [],
+      recurrence: null,
+      estimatedMinutes: null,
+      assigneeId: null,
     });
 
     expect(useAppStore.getState().tasks).toHaveLength(1);
