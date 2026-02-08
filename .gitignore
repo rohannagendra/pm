@@ -26,6 +26,7 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files
+.env
 .env*.local
 
 # typescript
@@ -34,3 +35,7 @@ next-env.d.ts
 
 # claude
 .claude/
+
+/lib/generated/prisma
+prisma/dev.db
+prisma/dev.db-journal
